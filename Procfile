@@ -1,1 +1,0 @@
-java -jar target/kids-club-bot-1.0-SNAPSHOT.jar
