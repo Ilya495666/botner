@@ -47,7 +47,7 @@ public class BotOk extends TelegramLongPollingBot {
 
     @Override
     public String getBotToken() {
-        return System.getenv("BOT_TOKEN");
+        return System.getenv("7260945926:AAEZLHuf8aDIIC-xWlnBjzG9cFhOZ7JmUfo");
     }
 
     @Override

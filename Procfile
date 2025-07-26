@@ -1,1 +1,1 @@
-java -jar target/kids-club-bot-1.0-SNAPSHOT.jar
+java -jar target/kids-club-bot-1.0-SNAPSHOT-shaded.jar
