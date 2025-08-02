@@ -48,19 +48,27 @@ public class Main {
 
     private static void insertInitialData(Connection conn) throws SQLException {
         Object[][] scheduleData = {
+                // Убрали "Вторник", добавили "Четверг" и новое время в "Пятницу"
                 {"Среда", "12:00-12:40", 6},
                 {"Среда", "17:30-18:10", 6},
                 {"Среда", "18:20-19:00", 6},
                 {"Среда", "19:10-19:50", 6},
-                {"Четверг", "18:20-19:00", 6},
+                {"Четверг", "18:20-19:00", 6},  // Новое время в четверг
                 {"Пятница", "12:00-12:40", 6},
-                {"Пятница", "17:30-18:10", 6},
+                {"Пятница", "17:30-18:10", 6},  // Новое время в пятницу
                 {"Суббота", "10:30-11:10", 6},
                 {"Суббота", "11:20-12:00", 6},
                 {"Суббота", "13:00-13:40", 6}
         };
+
         try (PreparedStatement pstmt = conn.prepareStatement(
                 "INSERT INTO schedule (day, time, max_places) VALUES (?, ?, ?)")) {
+            // Очищаем старые данные
+            try (Statement stmt = conn.createStatement()) {
+                stmt.executeUpdate("DELETE FROM schedule");
+            }
+
+            // Добавляем новые
             for (Object[] data : scheduleData) {
                 pstmt.setString(1, (String) data[0]);
                 pstmt.setString(2, (String) data[1]);
