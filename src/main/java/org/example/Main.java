@@ -18,29 +18,38 @@ public class Main {
     }
 
     private static void initializeDatabase() {
-        String url = "jdbc:sqlite:kids_club.db";
+        String url = System.getenv("DATABASE_URL"); // Для Railway
+        // Или для SQLite:
+        // String url = "jdbc:sqlite:kids_club.db";
+
         try (Connection conn = DriverManager.getConnection(url);
              Statement stmt = conn.createStatement()) {
+
+            // Удаляем таблицы, если они существуют
+            stmt.execute("DROP TABLE IF EXISTS bookings");
+            stmt.execute("DROP TABLE IF EXISTS schedule");
+
+            // Создаём заново
             stmt.execute("""
-                CREATE TABLE IF NOT EXISTS schedule (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    day TEXT NOT NULL,
-                    time TEXT NOT NULL,
-                    max_places INTEGER NOT NULL,
-                    booked_places INTEGER DEFAULT 0
-                )""");
+            CREATE TABLE schedule (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                day TEXT NOT NULL,
+                time TEXT NOT NULL,
+                max_places INTEGER NOT NULL,
+                booked_places INTEGER DEFAULT 0
+            )""");
+
             stmt.execute("""
-                CREATE TABLE IF NOT EXISTS bookings (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    user_id INTEGER NOT NULL,
-                    child_name TEXT NOT NULL,
-                    schedule_id INTEGER NOT NULL,
-                    booking_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                )""");
-            ResultSet rs = stmt.executeQuery("SELECT COUNT(*) FROM schedule");
-            if (rs.getInt(1) == 0) {
-                insertInitialData(conn);
-            }
+            CREATE TABLE bookings (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
+                child_name TEXT NOT NULL,
+                schedule_id INTEGER NOT NULL,
+                booking_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )""");
+
+            // Вставляем актуальное расписание
+            insertInitialData(conn);
         } catch (SQLException e) {
             e.printStackTrace();
         }
