@@ -19,8 +19,6 @@ public class Main {
 
     private static void initializeDatabase() {
         String url = System.getenv("DATABASE_URL"); // Для Railway
-        // Или для SQLite:
-        // String url = "jdbc:sqlite:kids_club.db";
 
         try (Connection conn = DriverManager.getConnection(url);
              Statement stmt = conn.createStatement()) {
@@ -29,10 +27,10 @@ public class Main {
             stmt.execute("DROP TABLE IF EXISTS bookings");
             stmt.execute("DROP TABLE IF EXISTS schedule");
 
-            // Создаём заново
+            // Создаём заново (исправлено для PostgreSQL)
             stmt.execute("""
             CREATE TABLE schedule (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                id SERIAL PRIMARY KEY,
                 day TEXT NOT NULL,
                 time TEXT NOT NULL,
                 max_places INTEGER NOT NULL,
@@ -41,7 +39,7 @@ public class Main {
 
             stmt.execute("""
             CREATE TABLE bookings (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                id SERIAL PRIMARY KEY,
                 user_id INTEGER NOT NULL,
                 child_name TEXT NOT NULL,
                 schedule_id INTEGER NOT NULL,
@@ -57,14 +55,13 @@ public class Main {
 
     private static void insertInitialData(Connection conn) throws SQLException {
         Object[][] scheduleData = {
-                // Убрали "Вторник", добавили "Четверг" и новое время в "Пятницу"
                 {"Среда", "12:00-12:40", 6},
                 {"Среда", "17:30-18:10", 6},
                 {"Среда", "18:20-19:00", 6},
                 {"Среда", "19:10-19:50", 6},
-                {"Четверг", "18:20-19:00", 6},  // Новое время в четверг
+                {"Четверг", "18:20-19:00", 6},
                 {"Пятница", "12:00-12:40", 6},
-                {"Пятница", "17:30-18:10", 6},  // Новое время в пятницу
+                {"Пятница", "17:30-18:10", 6},
                 {"Суббота", "10:30-11:10", 6},
                 {"Суббота", "11:20-12:00", 6},
                 {"Суббота", "13:00-13:40", 6}
@@ -86,4 +83,4 @@ public class Main {
             }
         }
     }
-    }
+}
