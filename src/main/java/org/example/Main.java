@@ -18,36 +18,29 @@ public class Main {
     }
 
     private static void initializeDatabase() {
-        String url = System.getenv("DATABASE_URL"); // Для Railway
-
+        String url = "jdbc:sqlite:kids_club.db";
         try (Connection conn = DriverManager.getConnection(url);
              Statement stmt = conn.createStatement()) {
-
-            // Удаляем таблицы, если они существуют
-            stmt.execute("DROP TABLE IF EXISTS bookings");
-            stmt.execute("DROP TABLE IF EXISTS schedule");
-
-            // Создаём заново (исправлено для PostgreSQL)
             stmt.execute("""
-            CREATE TABLE schedule (
-                id SERIAL PRIMARY KEY,
-                day TEXT NOT NULL,
-                time TEXT NOT NULL,
-                max_places INTEGER NOT NULL,
-                booked_places INTEGER DEFAULT 0
-            )""");
-
+                CREATE TABLE IF NOT EXISTS schedule (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    day TEXT NOT NULL,
+                    time TEXT NOT NULL,
+                    max_places INTEGER NOT NULL,
+                    booked_places INTEGER DEFAULT 0
+                )""");
             stmt.execute("""
-            CREATE TABLE bookings (
-                id SERIAL PRIMARY KEY,
-                user_id INTEGER NOT NULL,
-                child_name TEXT NOT NULL,
-                schedule_id INTEGER NOT NULL,
-                booking_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            )""");
-
-            // Вставляем актуальное расписание
-            insertInitialData(conn);
+                CREATE TABLE IF NOT EXISTS bookings (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    user_id INTEGER NOT NULL,
+                    child_name TEXT NOT NULL,
+                    schedule_id INTEGER NOT NULL,
+                    booking_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )""");
+            ResultSet rs = stmt.executeQuery("SELECT COUNT(*) FROM schedule");
+            if (rs.getInt(1) == 0) {
+                insertInitialData(conn);
+            }
         } catch (SQLException e) {
             e.printStackTrace();
         }
@@ -55,13 +48,14 @@ public class Main {
 
     private static void insertInitialData(Connection conn) throws SQLException {
         Object[][] scheduleData = {
+                // Убрали "Вторник", добавили "Четверг" и новое время в "Пятницу"
                 {"Среда", "12:00-12:40", 6},
                 {"Среда", "17:30-18:10", 6},
                 {"Среда", "18:20-19:00", 6},
                 {"Среда", "19:10-19:50", 6},
-                {"Четверг", "18:20-19:00", 6},
+                {"Четверг", "18:20-19:00", 6},  // Новое время в четверг
                 {"Пятница", "12:00-12:40", 6},
-                {"Пятница", "17:30-18:10", 6},
+                {"Пятница", "17:30-18:10", 6},  // Новое время в пятницу
                 {"Суббота", "10:30-11:10", 6},
                 {"Суббота", "11:20-12:00", 6},
                 {"Суббота", "13:00-13:40", 6}

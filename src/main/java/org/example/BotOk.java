@@ -11,7 +11,8 @@ import java.sql.*;
 import java.util.*;
 
 public class BotOk extends TelegramLongPollingBot {
-    private static final String DB_URL = System.getenv("DATABASE_URL"); // Используем PostgreSQL
+    private static final String DB_URL = "jdbc:sqlite:kids_club.db";
+
     // Список chatId педагогов
     private static final Set<Long> TEACHER_IDS = Set.of(
             7241469346L, // Пример: твой ID
@@ -46,7 +47,7 @@ public class BotOk extends TelegramLongPollingBot {
 
     @Override
     public String getBotToken() {
-        return System.getenv("BOT_TOKEN");
+        return System.getenv("ВАШ_ТОКЕН");
     }
 
     @Override
