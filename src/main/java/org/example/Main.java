@@ -18,7 +18,7 @@ public class Main {
     }
 
     private static void initializeDatabase() {
-        String url = "jdbc:sqlite:kids_club.db";
+        String url = "jdbc:sqlite:/tmp/kids_club.db";
         try (Connection conn = DriverManager.getConnection(url);
              Statement stmt = conn.createStatement()) {
             stmt.execute("""
