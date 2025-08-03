@@ -11,7 +11,11 @@ import java.sql.*;
 import java.util.*;
 
 public class BotOk extends TelegramLongPollingBot {
-    private static final String DB_URL = "jdbc:sqlite:/tmp/kids_club.db";
+    // Получаем параметры из переменных окружения Railway
+    private static final String DB_URL = System.getenv("DB_URL");
+    private static final String DB_USER = System.getenv("DB_USER");
+    private static final String DB_PASSWORD = System.getenv("DB_PASSWORD");
+
     // Список chatId педагогов
     private static final Set<Long> TEACHER_IDS = Set.of(
             7241469346L, // Пример: твой ID
@@ -130,7 +134,7 @@ public class BotOk extends TelegramLongPollingBot {
     }
 
     private void showTeacherBookings(long chatId) {
-        try (Connection conn = DriverManager.getConnection(DB_URL);
+        try (Connection conn = DriverManager.getConnection(DB_URL, DB_USER, DB_PASSWORD);
              PreparedStatement pstmt = conn.prepareStatement(
                      "SELECT s.day, s.time, b.child_name " +
                              "FROM schedule s LEFT JOIN bookings b ON s.id = b.schedule_id " +
@@ -161,11 +165,11 @@ public class BotOk extends TelegramLongPollingBot {
     }
 
     private void sendDailyReport(long chatId) {
-        try (Connection conn = DriverManager.getConnection(DB_URL);
+        try (Connection conn = DriverManager.getConnection(DB_URL, DB_USER, DB_PASSWORD);
              PreparedStatement pstmt = conn.prepareStatement(
                      "SELECT s.day, s.time, b.child_name " +
                              "FROM bookings b JOIN schedule s ON b.schedule_id = s.id " +
-                             "WHERE date(b.booking_date) = date('now') " +
+                             "WHERE DATE(b.booking_date) = CURRENT_DATE " +
                              "ORDER BY s.day, s.time")) {
 
             ResultSet rs = pstmt.executeQuery();
@@ -211,7 +215,7 @@ public class BotOk extends TelegramLongPollingBot {
     }
 
     private void sendDaySelection(long chatId) {
-        try (Connection conn = DriverManager.getConnection(DB_URL);
+        try (Connection conn = DriverManager.getConnection(DB_URL, DB_USER, DB_PASSWORD);
              Statement stmt = conn.createStatement();
              ResultSet rs = stmt.executeQuery("SELECT DISTINCT day FROM schedule")) {
             List<String> days = new ArrayList<>();
@@ -226,7 +230,7 @@ public class BotOk extends TelegramLongPollingBot {
         UserState userState = userStates.get(chatId);
         userState.selectedDay = day;
         userState.state = BookingState.SELECT_TIME;
-        try (Connection conn = DriverManager.getConnection(DB_URL);
+        try (Connection conn = DriverManager.getConnection(DB_URL, DB_USER, DB_PASSWORD);
              PreparedStatement pstmt = conn.prepareStatement(
                      "SELECT id, time FROM schedule WHERE day = ? AND booked_places < max_places")) {
             pstmt.setString(1, day);
@@ -248,7 +252,7 @@ public class BotOk extends TelegramLongPollingBot {
         UserState userState = userStates.get(chatId);
         userState.selectedTime = time;
         userState.state = BookingState.ENTER_CHILD_NAME;
-        try (Connection conn = DriverManager.getConnection(DB_URL);
+        try (Connection conn = DriverManager.getConnection(DB_URL, DB_USER, DB_PASSWORD);
              PreparedStatement pstmt = conn.prepareStatement(
                      "SELECT id FROM schedule WHERE day = ? AND time = ?")) {
             pstmt.setString(1, userState.selectedDay);
@@ -292,7 +296,7 @@ public class BotOk extends TelegramLongPollingBot {
     private void handleConfirmation(long chatId, String confirmation) {
         UserState userState = userStates.get(chatId);
         if (confirmation.equals("✅ Подтвердить")) {
-            try (Connection conn = DriverManager.getConnection(DB_URL)) {
+            try (Connection conn = DriverManager.getConnection(DB_URL, DB_USER, DB_PASSWORD)) {
                 conn.setAutoCommit(false);
                 try (PreparedStatement pstmt1 = conn.prepareStatement(
                         "UPDATE schedule SET booked_places = booked_places + 1 WHERE id = ? AND booked_places < max_places")) {
@@ -327,7 +331,7 @@ public class BotOk extends TelegramLongPollingBot {
     }
 
     private void startCancelBookingProcess(long chatId) {
-        try (Connection conn = DriverManager.getConnection(DB_URL);
+        try (Connection conn = DriverManager.getConnection(DB_URL, DB_USER, DB_PASSWORD);
              PreparedStatement pstmt = conn.prepareStatement(
                      "SELECT b.id, s.day, s.time, b.child_name " +
                              "FROM bookings b JOIN schedule s ON b.schedule_id = s.id " +
@@ -370,7 +374,7 @@ public class BotOk extends TelegramLongPollingBot {
                 sendMessage(chatId, "Неверный номер записи. Попробуйте еще раз.");
                 return;
             }
-            try (Connection conn = DriverManager.getConnection(DB_URL)) {
+            try (Connection conn = DriverManager.getConnection(DB_URL, DB_USER, DB_PASSWORD)) {
                 conn.setAutoCommit(false);
                 int scheduleId;
                 try (PreparedStatement pstmt = conn.prepareStatement(
@@ -412,92 +416,4 @@ public class BotOk extends TelegramLongPollingBot {
         for (int i = 0; i < options.size(); i += 2) {
             KeyboardRow row = new KeyboardRow();
             row.add(new KeyboardButton(options.get(i)));
-            if (i + 1 < options.size()) row.add(new KeyboardButton(options.get(i + 1)));
-            rows.add(row);
-        }
-        KeyboardRow backRow = new KeyboardRow();
-        backRow.add(new KeyboardButton("↩️ Назад"));
-        rows.add(backRow);
-        keyboard.setKeyboard(rows);
-        keyboard.setResizeKeyboard(true);
-        SendMessage message = new SendMessage();
-        message.setChatId(String.valueOf(chatId));
-        message.setText(text);
-        message.setReplyMarkup(keyboard);
-        try {
-            execute(message);
-        } catch (TelegramApiException e) {
-            e.printStackTrace();
-        }
-    }
-
-    private void sendSchedule(long chatId) {
-        try (Connection conn = DriverManager.getConnection(DB_URL);
-             Statement stmt = conn.createStatement();
-             ResultSet rs = stmt.executeQuery("""
-                SELECT day, time, (max_places - booked_places) as free_places 
-                FROM schedule 
-                ORDER BY 
-                    CASE day
-                        WHEN 'Понедельник' THEN 1
-                        WHEN 'Вторник' THEN 2
-                        WHEN 'Среда' THEN 3
-                        WHEN 'Четверг' THEN 4
-                        WHEN 'Пятница' THEN 5
-                        WHEN 'Суббота' THEN 6
-                        ELSE 7
-                    END, time""")) {
-            StringBuilder schedule = new StringBuilder("📅 Расписание 'Нейрогимнастика':\n\n");
-            String currentDay = "";
-            while (rs.next()) {
-                String day = rs.getString("day");
-                if (!day.equals(currentDay)) {
-                    schedule.append("\n📌 ").append(day.toUpperCase()).append("\n");
-                    currentDay = day;
-                }
-                schedule.append(String.format(
-                        "🕓 %s\n   🆓 Свободных мест: %d\n\n",
-                        rs.getString("time"),
-                        rs.getInt("free_places")
-                ));
-            }
-            sendMessage(chatId, schedule.toString());
-        } catch (Exception e) {
-            sendMessage(chatId, "⚠️ Ошибка при загрузке расписания");
-        }
-    }
-
-    private void sendStartMessage(long chatId) {
-        ReplyKeyboardMarkup keyboard = new ReplyKeyboardMarkup();
-        List<KeyboardRow> rows = new ArrayList<>();
-        KeyboardRow row1 = new KeyboardRow();
-        row1.add(new KeyboardButton("📅 Расписание"));
-        row1.add(new KeyboardButton("📝 Записаться"));
-        KeyboardRow row2 = new KeyboardRow();
-        row2.add(new KeyboardButton("❌ Отменить запись"));
-        rows.add(row1);
-        rows.add(row2);
-        keyboard.setKeyboard(rows);
-        keyboard.setResizeKeyboard(true);
-        SendMessage message = new SendMessage();
-        message.setChatId(String.valueOf(chatId));
-        message.setText("👋 Добро пожаловать!\n\nВыберите действие:");
-        message.setReplyMarkup(keyboard);
-        try {
-            execute(message);
-        } catch (TelegramApiException e) {
-            e.printStackTrace();
-        }
-    }
-
-    private void sendMessage(long chatId, String text) {
-        SendMessage message = new SendMessage();
-        message.setChatId(String.valueOf(chatId));
-        message.setText(text);
-        try {
-            execute(message);
-        } catch (TelegramApiException e) {
-            e.printStackTrace();
-        }
-    }
-}
+            if (i + 1 
